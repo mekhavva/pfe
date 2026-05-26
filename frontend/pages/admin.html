@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - PW Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .stat-card {
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            border: 2px solid #eef2f6;
+            user-select: none;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(74,159,212,0.18); }
+        .stat-card.active-card {
+            border-color: #4a9fd4;
+            border-bottom-color: white;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            position: relative; z-index: 3; margin-bottom: -2px;
+        }
+        .stat-card .stat-hint { font-size: 0.7rem; color: #b0c4d0; margin-top: 3px; }
+        #statsRow { margin-bottom: 0 !important; position: relative; z-index: 2; }
+
+        .sortable-th { cursor: pointer; user-select: none; white-space: nowrap; }
+        .sortable-th:hover { color: #4a9fd4; }
+
+        .users-panel-wrap {
+            background: white; border-radius: 12px;
+            border: 2px solid #4a9fd4;
+            box-shadow: 0 6px 18px rgba(74,159,212,0.10);
+            overflow: hidden; position: relative; z-index: 1; display: none;
+        }
+        .users-panel-wrap.show { display: block; }
+        .panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 20px 10px; border-bottom: 1.5px solid #f0f6fc;
+        }
+        .panel-header-title { font-size: 0.97rem; font-weight: 700; color: #1a2d3d; }
+        .panel-header-count { font-size: 0.82rem; color: #a0b4c0; font-weight: 600; }
+        .panel-body { padding: 6px 20px 14px; max-height: 300px; overflow-y: auto; }
+
+        .user-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 0; border-bottom: 1px solid #f4f8fc; font-size: 0.84rem;
+        }
+        .user-row:last-child { border-bottom: none; }
+        .user-row-name { font-weight: 600; color: #1a2d3d; }
+        .user-row-sub  { color: #90a4b0; font-size: 0.77rem; }
+
+        .pending-badge {
+            background: #e09a3b; color: white; border-radius: 12px;
+            padding: 1px 8px; font-size: 0.72rem; font-weight: 700; margin-left: 6px;
+        }
+        .role-pick-btn {
+            flex: 1; padding: 10px 14px; border: 2px solid #e0eaf2;
+            border-radius: 9px; background: #f8fbfe; cursor: pointer;
+            font-size: 0.87rem; color: #5a7080; transition: all 0.18s; font-weight: 600;
+        }
+        .role-pick-btn.selected             { border-color: #4a9fd4; background: #eef6fd; color: #2d7db5; }
+        .role-pick-btn.teacher-sel.selected { border-color: #7b5ea7; background: #f3eeff; color: #7b5ea7; }
+    </style>
+<script>
+async function authFetch(url,options={}){
+    options.credentials='include';
+    const r=await fetch(url,options);
+    if(r.status===401){window.location.href='../../index.html';return r;}
+    return r;
+}
+</script></head>
+<body>
+
+<nav class="navbar-custom" style="position:fixed;top:0;width:100%;z-index:200;">
+    <a class="navbar-brand-custom" href="#">PW <span>Platform</span></a>
+    <div class="nav-user-info">
+        <span id="navUserName">Admin</span>
+        <span class="nav-role-badge">Admin</span>
+        <button class="btn-secondary-custom" onclick="logout()" style="padding:5px 12px;font-size:0.82rem;">Logout</button>
+    </div>
+</nav>
+
+<div class="sidebar" style="top:60px;">
+    <div class="sidebar-section-title">Dashboard</div>
+    <a href="#" class="sidebar-link active" onclick="showSection('dashboard',this)">Overview</a>
+    <div class="sidebar-section-title">Management</div>
+    <a href="#" class="sidebar-link" onclick="showSection('levels',this)">Academic Levels</a>
+    <a href="#" class="sidebar-link" onclick="showSection('users',this)">Users</a>
+    <a href="#" class="sidebar-link" onclick="showSection('pending',this)">
+        Pending Approvals
+        <span class="pending-badge" id="pendingSidebarBadge" style="display:none;">0</span>
+    </a>
+    <a href="#" class="sidebar-link" onclick="showSection('pws',this)">All PW Sessions</a>
+    <a href="#" class="sidebar-link" onclick="showSection('missed',this)">Missed Sessions / الحصص الفائتة</a>
+</div>
+
+<div class="main-content" style="margin-top:60px;">
+
+    <!-- === Overview === -->
+    <div id="section-dashboard">
+        <p class="page-title">Admin Dashboard</p>
+        <p class="page-subtitle">Click a card to show its details below</p>
+
+        
+        <div class="row g-3" id="statsRow" style="margin-bottom:0;">
+            <div class="col text-center"><div class="loading-spinner"></div></div>
+        </div>
+
+        
+        <div class="users-panel-wrap" id="usersPanel">
+            <div class="panel-header">
+                <span class="panel-header-title" id="panelTitle"></span>
+                <span class="panel-header-count" id="panelCount"></span>
+            </div>
+            <div class="panel-body" id="panelBody"></div>
+        </div>
+
+        <div style="margin-bottom:24px;"></div>
+    </div>
+
+    <!-- === Academic Levels === -->
+    <div id="section-levels" style="display:none;">
+        <p class="page-title">Academic Levels</p>
+        <p class="page-subtitle">Manage levels like L1, L2, Ing1, M1...</p>
+        <div class="card-custom">
+            <div class="card-title-custom">Add New Level</div>
+            <div class="row g-2 align-items-end">
+                <div class="col-auto"><label class="form-label-custom">Level Name</label><input type="text" class="form-control-custom" id="levelName" placeholder="e.g. L3" style="width:160px;"></div>
+                <div class="col-auto"><label class="form-label-custom">Description</label><input type="text" class="form-control-custom" id="levelDesc" placeholder="e.g. Licence 3rd year" style="width:220px;"></div>
+                <div class="col-auto"><button class="btn-main" onclick="addLevel()">Add Level</button></div>
+            </div>
+            <div id="levelMsg" class="mt-2"></div>
+        </div>
+        <div class="card-custom"><div class="card-title-custom">Existing Levels</div><div id="levelsTable"></div></div>
+    </div>
+
+    <!-- === Users === -->
+    <div id="section-users" style="display:none;">
+        <p class="page-title">User Management</p>
+        <p class="page-subtitle">Click Name / Role / Level to sort</p>
+        <div class="card-custom">
+            <div class="card-title-custom">Add Admin or Teacher</div>
+            <div class="row g-2">
+                <div class="col-md-3"><label class="form-label-custom">Full Name</label><input type="text" class="form-control-custom" id="newUserName" placeholder="Full name"></div>
+                <div class="col-md-2"><label class="form-label-custom">Username</label><input type="text" class="form-control-custom" id="newUserUsername" placeholder="Username"></div>
+                <div class="col-md-3"><label class="form-label-custom">Email</label><input type="email" class="form-control-custom" id="newUserEmail" placeholder="email@example.com"></div>
+                <div class="col-md-2"><label class="form-label-custom">Password</label><input type="password" class="form-control-custom" id="newUserPass" placeholder="Password"></div>
+                <div class="col-md-1"><label class="form-label-custom">Role</label><select class="form-control-custom" id="newUserRole"><option value="teacher">Teacher</option><option value="admin">Admin</option></select></div>
+                <div class="col-md-1 d-flex align-items-end"><button class="btn-main w-100" onclick="addUser()">Add</button></div>
+            </div>
+            <div id="userMsg" class="mt-2"></div>
+        </div>
+        <div class="card-custom"><div class="card-title-custom">All Users</div><div id="usersTable"></div></div>
+    </div>
+
+    <!-- === Pending Approvals === -->
+    <div id="section-pending" style="display:none;">
+        <p class="page-title">Pending Approvals</p>
+        <p class="page-subtitle">Approve new accounts and assign each person a role</p>
+        <div class="card-custom"><div id="pendingTable"><div class="loading-spinner"></div></div></div>
+    </div>
+
+    <!-- === All PW Sessions === -->
+    <div id="section-pws" style="display:none;">
+        <p class="page-title">All PW Sessions</p>
+        <p class="page-subtitle">View and manage all practical work sessions</p>
+        <div class="card-custom"><div id="pwsTable"></div></div>
+    </div>
+
+    <!-- === Missed Sessions === -->
+    <div id="section-missed" style="display:none;">
+        <p class="page-title">Missed Sessions / الحصص الفائتة للطلاب</p>
+        <p class="page-subtitle">List of students who missed their sessions because of delay, grouped by academic level</p>
+        <div class="card-custom">
+            <div id="missedTable"><div class="loading-spinner"></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Confirm Delete -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-box">
+        <div class="modal-title">Confirm Delete</div>
+        <p style="font-size:0.9rem;color:#666;" id="confirmMsg">Are you sure?</p>
+        <div class="mt-3 d-flex gap-2 justify-content-end">
+            <button class="btn-secondary-custom" onclick="closeModal('confirmModal')">Cancel</button>
+            <button class="btn-danger-custom" id="confirmBtn">Delete</button>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal-overlay" id="approveModal">
+    <div class="modal-box" style="max-width:420px;">
+        <div class="modal-title">Approve Account</div>
+        <p style="font-size:0.85rem;color:#5a7080;margin-bottom:16px;">
+            Assign a role to: <strong id="approveUserName">—</strong>
+        </p>
+        <label class="form-label-custom" style="margin-bottom:8px;">Select Role</label>
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+            <button class="role-pick-btn selected" id="btnPickStudent" onclick="pickRole('student')">Student</button>
+            <button class="role-pick-btn teacher-sel" id="btnPickTeacher" onclick="pickRole('teacher')">Teacher</button>
+        </div>
+        
+        <div id="levelPickRow">
+            <label class="form-label-custom" style="margin-bottom:6px;">Academic Level *</label>
+            <select class="form-control-custom" id="approveLevel" onchange="onApproveLevelChange()"
+                    style="width:100%;margin-bottom:10px;">
+                <option value="">— Select level —</option>
+            </select>
+            
+            <div id="approveGroupRow" style="display:none;">
+                <label class="form-label-custom" style="margin-bottom:6px;">Group Number</label>
+                <select class="form-control-custom" id="approveGroup" style="width:100%;">
+                    <option value="">— Select group (optional) —</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-3 d-flex gap-2 justify-content-end">
+            <button class="btn-secondary-custom" onclick="closeModal('approveModal')">Cancel</button>
+            <button class="btn-main" onclick="confirmApprove()">Approve</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '../../backend/api';
+let pendingDelete  = null;
+let approveUserId  = null;
+let selectedRole   = 'student';
+let allLevels      = [];
+let _users         = [];
+let _pending       = [];
+let _pws           = [];
+let _activePanel   = null;
+let _usersData     = [];
+let _usersSortCol  = 'role';
+let _usersSortDir  = 'asc';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await verifyAdmin();
+    await loadAllLevels();
+    loadStats();
+    loadPendingBadge();
+});
+
+async function verifyAdmin() {
+    try {
+        const r = await authFetch(`${API}/auth.php?action=check`);
+        const d = await r.json();
+        if (!d.success || d.role !== 'admin') window.location.href = '../../index.html';
+        else document.getElementById('navUserName').textContent = d.name;
+    } catch(e) { window.location.href = '../../index.html'; }
+}
+
+async function loadAllLevels() {
+    const r = await authFetch(`${API}/admin.php?action=get_levels`);
+    const d = await r.json();
+    if (d.success) allLevels = d.levels;
+}
+
+function showSection(name, el) {
+    document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    document.getElementById(`section-${name}`).style.display = 'block';
+    if (el) el.classList.add('active');
+    ({ dashboard: () => { loadStats(); }, levels: loadLevels, users: loadUsers,
+       pending: loadPendingList, pws: loadAllPWs, missed: loadMissedList })[name]?.();
+}
+
+let _missed = [];
+
+async function loadStats() {
+    const [r1, r2, r3, r4] = await Promise.all([
+        authFetch(`${API}/admin.php?action=stats`),
+        authFetch(`${API}/admin.php?action=get_users`),
+        authFetch(`${API}/admin.php?action=get_pending`),
+        authFetch(`${API}/admin.php?action=get_missed_sessions`)
+    ]);
+    const dS = await r1.json();
+    const dU = await r2.json();
+    const dP = await r3.json();
+    const dM = await r4.json();
+
+    _users   = dU.success ? dU.users   : [];
+    _pending = dP.success ? dP.pending : [];
+    _missed  = dM.success ? dM.missed_sessions : [];
+    if (!dS.success) return;
+
+    const rPws = await authFetch(`${API}/admin.php?action=get_pws`);
+    const dPws = await rPws.json();
+    _pws = dPws.success ? dPws.pws : [];
+
+    const s        = dS.stats;
+    const students = _users.filter(u => u.role === 'student');
+    const teachers = _users.filter(u => u.role === 'teacher');
+    const admins   = _users.filter(u => u.role === 'admin');
+
+    const card = (id, count, label, type, extra='') =>
+        `<div class="col">
+            <div class="stat-card${_activePanel===type?' active-card':''}" id="card-${id}"
+                 onclick="togglePanel('${type}','${label}',${count})">
+                <span class="stat-number">${count}</span>
+                <div class="stat-label">${label}</div>
+                <div class="stat-hint">click for details</div>
+            </div>
+         </div>`;
+
+    document.getElementById('statsRow').innerHTML =
+        card('students',    students.length,         'Students',           'students') +
+        card('teachers',    teachers.length,         'Teachers',           'teachers') +
+        card('pws',         _pws.length,             'PW Sessions',        'pws')      +
+        card('reservations',s.total_reservations,    'Reservations',       'reservations') +
+        card('admins',      admins.length,            'Admins',             'admins')   +
+        card('pending',     _pending.length,          'Pending',            'pending')  +
+        card('missed',      s.total_missed || 0,     'Missed Sessions',    'missed');
+
+    if (_activePanel) {
+        const titles = { students:'Students', teachers:'Teachers', admins:'Admins',
+                         pending:'Pending Approvals', pws:'PW Sessions', reservations:'Reservations', missed:'Missed Sessions' };
+        const counts = { students:students.length, teachers:teachers.length, admins:admins.length,
+                         pending:_pending.length, pws:_pws.length, reservations:s.total_reservations, missed:_missed.length };
+        if (titles[_activePanel]) _renderPanel(_activePanel, titles[_activePanel], counts[_activePanel]);
+    }
+}
+
+function togglePanel(type, title, count) {
+    if (_activePanel === type) {
+        _activePanel = null;
+        document.getElementById('usersPanel').classList.remove('show');
+        document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active-card'));
+        return;
+    }
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active-card'));
+    document.getElementById(`card-${type === 'students' ? 'students' :
+                                    type === 'teachers' ? 'teachers' :
+                                    type === 'pws'      ? 'pws'      :
+                                    type === 'admins'   ? 'admins'   :
+                                    type === 'pending'  ? 'pending'  :
+                                    type === 'missed'   ? 'missed'   : 'reservations'}`)
+            ?.classList.add('active-card');
+    _activePanel = type;
+    _renderPanel(type, title, count);
+}
+
+function _renderPanel(type, title, count) {
+    document.getElementById('panelTitle').textContent = title;
+    document.getElementById('panelCount').textContent = `${count} total`;
+    document.getElementById('panelBody').innerHTML    = _buildPanelRows(type);
+    document.getElementById('usersPanel').classList.add('show');
+}
+
+function _buildPanelRows(type) {
+    let list = [];
+    if (type === 'students')     list = _users.filter(u => u.role === 'student');
+    if (type === 'teachers')     list = _users.filter(u => u.role === 'teacher');
+    if (type === 'admins')       list = _users.filter(u => u.role === 'admin');
+    if (type === 'pending')      list = _pending;
+    if (type === 'pws')          list = _pws;
+    if (type === 'reservations') list = _pws.filter(pw => pw.total_reservations > 0);
+    if (type === 'missed')       list = _missed || [];
+
+    if (!list.length)
+        return `<p style="color:#aaa;font-size:0.84rem;padding:10px 0;">No records found.</p>`;
+
+    if (type === 'pws' || type === 'reservations') {
+        return list.map(pw => `
+            <div class="user-row">
+                <div>
+                    <div class="user-row-name">${pw.title}</div>
+                    <div class="user-row-sub">${pw.teacher_name} &middot; ${pw.level_name}
+                        ${type==='reservations' ? ' &middot; <strong>'+pw.total_reservations+' reserved</strong>' : ''}
+                    </div>
+                </div>
+                <span class="badge-${pw.is_active=='1'?'active':'inactive'}" style="font-size:0.72rem;">
+                    ${pw.is_active=='1'?'Active':'Off'}
+                </span>
+            </div>`).join('');
+    }
+
+    if (type === 'pending') {
+        return list.map(u => `
+            <div class="user-row">
+                <div>
+                    <div class="user-row-name">${u.full_name}</div>
+                    <div class="user-row-sub">@${u.username}${u.email?' &middot; '+u.email:''}</div>
+                </div>
+                <div style="display:flex;gap:5px;">
+                    <button class="btn-main" style="font-size:0.74rem;padding:4px 11px;"
+                        onclick="openApproveModal(${u.id},'${u.full_name.replace(/'/g,"\\'")}')">Approve</button>
+                    <button class="btn-danger-custom" style="font-size:0.74rem;padding:4px 10px;"
+                        onclick="confirmDelete('pending',${u.id},'${u.full_name.replace(/'/g,"\\'")}')">Reject</button>
+                </div>
+            </div>`).join('');
+    }
+
+    if (type === 'missed') {
+        return list.map(s => `
+            <div class="user-row">
+                <div>
+                    <div class="user-row-name">${s.student_name} (@${s.username})</div>
+                    <div class="user-row-sub">${s.pw_title} &middot; ${s.slot_date} (${s.start_time.substring(0,5)}) &middot; ${s.level_name}</div>
+                </div>
+                <span class="badge-inactive" style="font-size:0.72rem; background:#fdecea; color:var(--danger);">Missed</span>
+            </div>`).join('');
+    }
+
+    // students / teachers / admins
+    return list.map(u => `
+        <div class="user-row">
+            <div>
+                <div class="user-row-name">${u.full_name}</div>
+                <div class="user-row-sub">@${u.username}${u.level_name?' &middot; '+u.level_name:''}</div>
+            </div>
+            <span class="badge-${u.is_active?'active':'inactive'}" style="font-size:0.72rem;">
+                ${u.is_active?'Active':'Off'}
+            </span>
+        </div>`).join('');
+}
+
+async function loadPendingBadge() {
+    const r = await authFetch(`${API}/admin.php?action=get_pending`);
+    const d = await r.json();
+    const b = document.getElementById('pendingSidebarBadge');
+    const n = d.success ? d.pending.length : 0;
+    b.textContent = n; b.style.display = n > 0 ? 'inline' : 'none';
+}
+
+// ── Pending list page ──────────────────────────────────────
+async function loadPendingList() {
+    const r  = await authFetch(`${API}/admin.php?action=get_pending`);
+    const d  = await r.json();
+    const el = document.getElementById('pendingTable');
+    if (!d.success || !d.pending.length) {
+        el.innerHTML='<div class="empty-state"><p>No pending accounts.</p></div>'; return;
+    }
+    let html=`<table class="table-custom"><thead><tr>
+        <th>Full Name</th><th>Username</th><th>Email</th><th>Registered</th><th>Actions</th>
+    </tr></thead><tbody>`;
+    d.pending.forEach(u => {
+        const date = new Date(u.created_at).toLocaleDateString('en-GB');
+        html += `<tr><td><strong>${u.full_name}</strong></td><td>${u.username}</td>
+            <td>${u.email||'—'}</td><td>${date}</td>
+            <td style="display:flex;gap:6px;">
+                <button class="btn-main" style="font-size:0.8rem;padding:5px 14px;"
+                    onclick="openApproveModal(${u.id},'${u.full_name.replace(/'/g,"\\'")}')">Approve</button>
+                <button class="btn-danger-custom"
+                    onclick="confirmDelete('pending',${u.id},'${u.full_name.replace(/'/g,"\\'")}')">Reject</button>
+            </td></tr>`;
+    });
+    el.innerHTML = html + '</tbody></table>';
+}
+
+function openApproveModal(userId, userName) {
+    approveUserId = userId; selectedRole = 'student';
+    document.getElementById('approveUserName').textContent = userName;
+    pickRole('student');
+    const sel = document.getElementById('approveLevel');
+    sel.innerHTML = '<option value="">— Select level —</option>';
+    allLevels.forEach(l => sel.innerHTML += `<option value="${l.id}">${l.name}${l.description?' — '+l.description:''}</option>`);
+    document.getElementById('approveGroupRow').style.display = 'none';
+    document.getElementById('approveModal').classList.add('show');
+}
+
+function pickRole(role) {
+    selectedRole = role;
+    document.getElementById('btnPickStudent').classList.toggle('selected', role === 'student');
+    document.getElementById('btnPickTeacher').classList.toggle('selected', role === 'teacher');
+    document.getElementById('levelPickRow').style.display = role === 'student' ? 'block' : 'none';
+    if (role !== 'student') document.getElementById('approveGroupRow').style.display = 'none';
+}
+
+async function onApproveLevelChange() {
+    const levelId  = document.getElementById('approveLevel').value;
+    const groupRow = document.getElementById('approveGroupRow');
+    const groupSel = document.getElementById('approveGroup');
+    groupRow.style.display = 'none';
+    if (!levelId) return;
+    const res  = await authFetch(`${API}/teacher.php?action=get_level_groups&level_id=${levelId}`);
+    const data = await res.json();
+    if (data.success && data.groups.length > 0) {
+        groupSel.innerHTML = '<option value="">— Select group (optional) —</option>';
+        data.groups.forEach(g => {
+            groupSel.innerHTML += `<option value="${g.group_num}">${g.label} (${g.student_count} students)</option>`;
+        });
+        groupRow.style.display = 'block';
+    }
+}
+
+async function confirmApprove() {
+    const levelId  = parseInt(document.getElementById('approveLevel').value) || null;
+    const groupNum = parseInt(document.getElementById('approveGroup')?.value) || null;
+    if (selectedRole === 'student' && !levelId) { alert('Please select an academic level.'); return; }
+    const r = await authFetch(`${API}/admin.php?action=approve_user`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: approveUserId, role: selectedRole, level_id: levelId, group_num: groupNum })
+    });
+    const d = await r.json();
+    closeModal('approveModal');
+    if (d.success) {
+        loadStats(); loadPendingBadge();
+        if (document.getElementById('section-pending').style.display !== 'none') loadPendingList();
+    } else { alert(d.message || 'Approval failed'); }
+}
+
+// ── Academic Levels ────────────────────────────────────────
+async function loadLevels() {
+    const r = await authFetch(`${API}/admin.php?action=get_levels`);
+    const d = await r.json();
+    if (!d.success) return;
+    if (!d.levels.length) { document.getElementById('levelsTable').innerHTML='<div class="empty-state"><p>No levels yet</p></div>'; return; }
+    let html=`<table class="table-custom"><thead><tr><th>Level</th><th>Description</th><th>Action</th></tr></thead><tbody>`;
+    d.levels.forEach(l => html+=`<tr><td><strong>${l.name}</strong></td><td>${l.description||'—'}</td>
+        <td><button class="btn-danger-custom" onclick="confirmDelete('level',${l.id},'${l.name}')">Delete</button></td></tr>`);
+    document.getElementById('levelsTable').innerHTML = html + '</tbody></table>';
+}
+
+async function addLevel() {
+    const name=document.getElementById('levelName').value.trim();
+    const desc=document.getElementById('levelDesc').value.trim();
+    if (!name) { showMsg('levelMsg','Level name required','error'); return; }
+    const r=await authFetch(`${API}/admin.php?action=add_level`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,description:desc})});
+    const d=await r.json();
+    showMsg('levelMsg',d.message,d.success?'success':'error');
+    if (d.success) { document.getElementById('levelName').value=''; document.getElementById('levelDesc').value=''; loadLevels(); await loadAllLevels(); }
+}
+
+// ── Users with sortable columns ────────────────────────────
+async function loadUsers() {
+    const r = await authFetch(`${API}/admin.php?action=get_users`);
+    const d = await r.json();
+    if (!d.success) return;
+    if (!d.users.length) { document.getElementById('usersTable').innerHTML='<div class="empty-state"><p>No users</p></div>'; return; }
+    _usersData = d.users;
+    _renderUsersTable();
+}
+
+function _sortUsers(col) {
+    _usersSortDir = (_usersSortCol === col && _usersSortDir === 'asc') ? 'desc' : 'asc';
+    _usersSortCol = col;
+    _renderUsersTable();
+}
+
+function _renderUsersTable() {
+    const roleOrder = { admin: 0, teacher: 1, student: 2 };
+    const dir = _usersSortDir === 'asc' ? 1 : -1;
+    const sorted = [..._usersData].sort((a, b) => {
+        if (_usersSortCol === 'name')  return (a.full_name||'').localeCompare(b.full_name||'') * dir;
+        if (_usersSortCol === 'role')  return ((roleOrder[a.role]??9) - (roleOrder[b.role]??9)) * dir;
+        if (_usersSortCol === 'level') return (a.level_name||'').localeCompare(b.level_name||'') * dir;
+        return 0;
+    });
+    const th = (label, col) => {
+        const active = _usersSortCol === col;
+        const icon   = !active ? '&#8645;' : (_usersSortDir === 'asc' ? '&#9650;' : '&#9660;');
+        const color  = active ? '#4a9fd4' : '#b0c4d0';
+        return `<th class="sortable-th" onclick="_sortUsers('${col}')">${label} <span style="font-size:0.72rem;color:${color};">${icon}</span></th>`;
+    };
+    let html=`<table class="table-custom"><thead><tr>
+        ${th('Name','name')}<th>Username</th><th>Email</th>
+        ${th('Role','role')}${th('Level','level')}<th>Status</th><th>Actions</th>
+    </tr></thead><tbody>`;
+    sorted.forEach((u,i) => html+=`<tr>
+        <td>${i+1}. ${u.full_name}</td><td>${u.username}</td><td>${u.email||'—'}</td>
+        <td><span class="badge-${u.role}">${u.role}</span></td>
+        <td>${u.level_name||'—'}</td>
+        <td><span class="badge-${u.is_active?'active':'inactive'}">${u.is_active?'Active':'Off'}</span></td>
+        <td style="display:flex;gap:6px;">
+            <button class="btn-secondary-custom" style="font-size:0.78rem;padding:5px 10px;" onclick="toggleUser(${u.id})">${u.is_active?'Disable':'Enable'}</button>
+            <button class="btn-danger-custom" onclick="confirmDelete('user',${u.id},'${u.username}')">Delete</button>
+        </td></tr>`);
+    document.getElementById('usersTable').innerHTML = html + '</tbody></table>';
+}
+
+async function addUser() {
+    const p={full_name:document.getElementById('newUserName').value.trim(),
+             username:document.getElementById('newUserUsername').value.trim(),
+             email:document.getElementById('newUserEmail').value.trim(),
+             password:document.getElementById('newUserPass').value,
+             role:document.getElementById('newUserRole').value};
+    if(!p.full_name||!p.username||!p.password){showMsg('userMsg','Name, username and password required','error');return;}
+    const r=await authFetch(`${API}/admin.php?action=add_user`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+    const d=await r.json();
+    showMsg('userMsg',d.message,d.success?'success':'error');
+    if(d.success) loadUsers();
+}
+
+async function toggleUser(id) {
+    await authFetch(`${API}/admin.php?action=toggle_user`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    loadUsers();
+}
+
+// ── All PW Sessions ────────────────────────────────────────
+// ── All PW Sessions — grouped by level ──────────────────────
+async function loadAllPWs() {
+    const r = await authFetch(`${API}/admin.php?action=get_pws`);
+    const d = await r.json();
+    const el = document.getElementById('pwsTable');
+    if (!d.success || !d.pws.length) {
+        el.innerHTML = '<div class="empty-state"><p>No PW sessions</p></div>'; return;
+    }
+    const byLevel = {};
+    d.pws.forEach(pw => {
+        const key = pw.level_name || 'Unknown';
+        if (!byLevel[key]) byLevel[key] = [];
+        byLevel[key].push(pw);
+    });
+    let html = '';
+    Object.keys(byLevel).sort().forEach(level => {
+        const pws = byLevel[level];
+        html += `<div style="margin-bottom:28px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <span style="background:linear-gradient(135deg,#4a9fd4,#2d7db5);color:white;
+                    border-radius:8px;padding:4px 14px;font-size:0.92rem;font-weight:800;">${level}</span>
+                <span style="font-size:0.78rem;color:#a0b4c0;font-weight:600;
+                    background:#f0f6fc;border-radius:20px;padding:2px 10px;">
+                    ${pws.length} PW${pws.length > 1 ? 's' : ''}</span>
+                <div style="flex:1;height:2px;background:linear-gradient(90deg,#d6eaf8,transparent);"></div>
+            </div>
+            <table class="table-custom" style="margin:0;"><thead><tr>
+                <th>Title</th><th>Teacher</th><th>Slots</th><th>Reserved</th><th>Status</th><th>Actions</th>
+            </tr></thead><tbody>
+            ${pws.map(pw=>`<tr>
+                <td><strong>${pw.title}</strong></td><td>${pw.teacher_name}</td>
+                <td>${pw.total_slots}</td><td>${pw.total_reservations}</td>
+                <td><span class="badge-${pw.is_active?'active':'inactive'}">${pw.is_active?'Active':'Off'}</span></td>
+                <td style="display:flex;gap:6px;">
+                    <button class="btn-secondary-custom" style="font-size:0.78rem;padding:5px 10px;"
+                        onclick="togglePW(${pw.id})">${pw.is_active?'Disable':'Enable'}</button>
+                    <button class="btn-danger-custom"
+                        onclick="confirmDelete('pw',${pw.id},'${pw.title.replace(/'/g,"\\'")}')">Delete</button>
+                </td></tr>`).join('')}
+            </tbody></table></div>`;
+    });
+    el.innerHTML = html;
+}
+
+async function togglePW(id) {
+    await authFetch(`${API}/admin.php?action=toggle_pw`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    loadAllPWs();
+}
+
+// ── Modals ─────────────────────────────────────────────────
+function confirmDelete(type,id,name) {
+    pendingDelete={type,id};
+    document.getElementById('confirmMsg').textContent=`"${name}" will be permanently deleted. Continue?`;
+    document.getElementById('confirmModal').classList.add('show');
+    document.getElementById('confirmBtn').onclick=executeDelete;
+}
+
+async function executeDelete() {
+    if(!pendingDelete) return;
+    closeModal('confirmModal');
+    const map={level:'delete_level',user:'delete_user',pw:'delete_pw',pending:'reject_user'};
+    await authFetch(`${API}/admin.php?action=${map[pendingDelete.type]}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pendingDelete.id})
+    });
+    pendingDelete=null;
+    loadStats(); loadPendingBadge();
+    const sec=document.querySelector('[id^="section-"]:not([style*="none"])')?.id.replace('section-','');
+    if(sec==='levels') loadLevels();
+    if(sec==='users')  loadUsers();
+    if(sec==='pws')    loadAllPWs();
+    if(sec==='pending') loadPendingList();
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+
+async function logout() {
+    try {
+        await authFetch(`${API}/auth.php?action=logout`);
+        localStorage.removeItem('pw_token');
+        window.location.href = '../../index.html';
+    } catch (e) {
+        console.error('Logout error:', e);
+    }
+}
+
+// ── Missed Sessions list grouped by level ─────────────────────
+async function loadMissedList() {
+    const r = await authFetch(`${API}/admin.php?action=get_missed_sessions`);
+    const d = await r.json();
+    const el = document.getElementById('missedTable');
+    if (!d.success || !d.missed_sessions.length) {
+        el.innerHTML = '<div class="empty-state"><p>No missed sessions found / لا يوجد طلاب متأخرين في النظام حالياً</p></div>';
+        return;
+    }
+    
+    const byLevel = {};
+    d.missed_sessions.forEach(res => {
+        const key = res.level_name || 'Unknown';
+        if (!byLevel[key]) byLevel[key] = [];
+        byLevel[key].push(res);
+    });
+    
+    let html = '';
+    Object.keys(byLevel).sort().forEach(level => {
+        const sessions = byLevel[level];
+        html += `
+        <div style="margin-bottom: 28px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; direction: rtl; justify-content: flex-end;">
+                <span style="background: linear-gradient(135deg, var(--danger), #c0392b); color: white;
+                    border-radius: 8px; padding: 4px 14px; font-size: 0.92rem; font-weight: 800;">${level}</span>
+                <span style="font-size: 0.78rem; color: #a0b4c0; font-weight: 600;
+                    background: #fdecea; border-radius: 20px; padding: 2px 10px;">
+                    ${sessions.length} student${sessions.length > 1 ? 's' : ''} missed
+                </span>
+                <div style="flex: 1; height: 2px; background: linear-gradient(270deg, #f0c0c0, transparent);"></div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="table-custom" style="margin: 0; min-width: 600px;">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Username</th>
+                            <th>PW Title</th>
+                            <th>Date</th>
+                            <th>Scheduled Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sessions.map(s => `
+                            <tr>
+                                <td><strong>${s.student_name}</strong></td>
+                                <td>@${s.username}</td>
+                                <td>${s.pw_title}</td>
+                                <td>${s.slot_date}</td>
+                                <td>${s.start_time.substring(0,5)} - ${s.end_time.substring(0,5)}</td>
+                                <td><span class="badge-inactive" style="background:#fdecea; color:var(--danger); font-size: 0.75rem;">Missed / فائت</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+    });
+    el.innerHTML = html;
+}
+</script>
+</body>
+</html>

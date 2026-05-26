@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PW Platform - Sign In</title>
+    <style>
+        :root {
+            --primary: #4a9fd4;
+            --primary-dark: #2d7db5;
+            --primary-bg: #eef6fd;
+            --primary-soft: #cde5f6;
+            --gray-text: #5a7080;
+            --dark-text: #1a2d3d;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            min-height: 100vh;
+            font-family: "Segoe UI", Arial, sans-serif;
+            /* خلفية متدرجة تملأ الشاشة بالكامل لتندمج الواجهة معها */
+            background: linear-gradient(135deg, #f5fafd 0%, #eef6fd 50%, #e3f2fd 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            overflow-x: hidden;
+        }
+        
+        /* منطقة اللوقو - في المنتصف فوق */
+        .logo-area {
+            text-align: center;
+            margin-bottom: 24px;
+            z-index: 1;
+            position: relative;
+        }
+        
+        .logo-img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 4px solid white;
+            box-shadow: 0 8px 24px rgba(74, 159, 212, 0.15);
+            margin-bottom: 12px;
+            transition: transform 0.3s ease;
+        }
+        
+        .logo-img:hover {
+            transform: scale(1.03);
+        }
+        
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--dark-text);
+        }
+        
+        .logo-text b {
+            color: var(--primary);
+        }
+        
+        .logo-subtitle {
+            font-size: 0.82rem;
+            color: var(--gray-text);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+        
+        /* كارد تسجيل الدخول - مدمج وبدون حواف قاسية ليظهر كجزء من الشاشة */
+        .auth-container {
+            width: 100%;
+            max-width: 420px;
+            background: transparent; /* شفاف للتوافق الكامل مع الشاشة */
+            padding: 10px 10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            background: rgba(74, 159, 212, 0.08);
+            border-radius: 20px;
+            padding: 4px;
+            margin-bottom: 24px;
+            gap: 4px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            border-radius: 16px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            color: var(--gray-text);
+            transition: all 0.25s ease;
+            font-weight: 600;
+        }
+        
+        .tab-btn.active {
+            background: white;
+            color: var(--primary-dark);
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(74, 159, 212, 0.12);
+        }
+        
+        .auth-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--gray-text);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .input-wrapper {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        
+        .auth-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid #dce8f0;
+            border-radius: 12px;
+            font-size: 0.92rem;
+            outline: none;
+            transition: all 0.25s ease;
+            background: white;
+            color: var(--dark-text);
+            box-shadow: 0 2px 6px rgba(74, 159, 212, 0.02);
+        }
+        
+        .auth-input:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(74, 159, 212, 0.14);
+        }
+        
+        .auth-input.has-toggle {
+            padding-right: 46px;
+        }
+        
+        .eye-btn {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 3px;
+            color: #a0b8c8;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        
+        .eye-btn:hover {
+            color: var(--primary);
+        }
+        
+        .eye-btn svg {
+            width: 19px;
+            height: 19px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .auth-btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.96rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 15px rgba(74, 159, 212, 0.25);
+            margin-top: 10px;
+        }
+        
+        .auth-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(74, 159, 212, 0.35);
+        }
+        
+        .auth-btn:active {
+            transform: translateY(0);
+        }
+        
+        .auth-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .auth-message {
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.86rem;
+            margin-bottom: 20px;
+            display: none;
+            line-height: 1.5;
+        }
+        
+        .auth-message.error {
+            background: #fdecea;
+            color: #a33;
+            border-left: 4px solid #e05c5c;
+        }
+        
+        .auth-message.success {
+            background: #edfaf3;
+            color: #2d7a57;
+            border-left: 4px solid #4caf80;
+        }
+        
+        .auth-message.warning {
+            background: #fff8e6;
+            color: #7a5a00;
+            border-left: 4px solid #e09a3b;
+        }
+        
+        .register-note {
+            background: rgba(74, 159, 212, 0.05);
+            border: 1px solid var(--primary-soft);
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 0.8rem;
+            color: #3d6f90;
+            margin-bottom: 20px;
+            text-align: center;
+            line-height: 1.5;
+        }
+        
+        .pending-notice {
+            background: #fff8e6;
+            border: 1px solid #f0d080;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 0.84rem;
+            color: #7a5a00;
+            text-align: center;
+            display: none;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+        
+        hr {
+            border: none;
+            border-top: 1px solid #dce8f0;
+            margin: 20px 0 15px;
+        }
+        
+        /* الدوائر المتدرجة في الخلفية لجمال بصري إضافي */
+        .bg-glow-1 {
+            position: fixed;
+            top: -10%;
+            left: -10%;
+            width: 40%;
+            height: 40%;
+            background: radial-gradient(circle, rgba(74,159,212,0.12) 0%, transparent 70%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .bg-glow-2 {
+            position: fixed;
+            bottom: -10%;
+            right: -10%;
+            width: 50%;
+            height: 50%;
+            background: radial-gradient(circle, rgba(45,125,181,0.08) 0%, transparent 70%);
+            z-index: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-glow-1"></div>
+<div class="bg-glow-2"></div>
+
+<!-- منطقة اللوقو - في المنتصف فوق -->
+<div class="logo-area">
+    <img class="logo-img" id="logoImg" src="logo.jpg" alt="PW Platform Logo">
+    <div class="logo-text"><b>PW</b> Platform</div>
+    <div class="logo-subtitle">Practical Work Booking System / منصة حجز الحصص التطبيقية</div>
+</div>
+
+<div class="auth-container">
+    <div class="tab-buttons">
+        <button class="tab-btn active" onclick="switchTab('login')">Sign In / الدخول</button>
+        <button class="tab-btn" onclick="switchTab('register')">Create Account / التسجيل</button>
+    </div>
+    
+    <div class="auth-message" id="authMessage"></div>
+
+    <!-- نموذج تسجيل الدخول -->
+    <div id="loginForm">
+        <div>
+            <label class="auth-label">Username / اسم المستخدم</label>
+            <div class="input-wrapper">
+                <input type="text" class="auth-input" id="loginUsername" placeholder="Enter your username" autocomplete="username">
+            </div>
+        </div>
+        <div>
+            <label class="auth-label">Password / كلمة المرور</label>
+            <div class="input-wrapper">
+                <input type="password" class="auth-input has-toggle" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
+                <button class="eye-btn" type="button" onclick="togglePassword('loginPassword',this)">
+                    <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+            </div>
+        </div>
+        <button class="auth-btn" onclick="handleLogin()" id="loginBtn">Sign In / دخول</button>
+    </div>
+
+    <!-- نموذج طلب فتح حساب جديد -->
+    <div id="registerForm" style="display:none;">
+        <div class="register-note">
+            Fill the form below. The administrator will review your request and approve it.<br>
+            املأ النموذج أدناه، وسيقوم المسؤول بمراجعة حسابك وتفعيله في أقرب وقت.
+        </div>
+        <div>
+            <label class="auth-label">Full Name * / الاسم الكامل</label>
+            <div class="input-wrapper">
+                <input type="text" class="auth-input" id="regFullName" placeholder="Your full name">
+            </div>
+        </div>
+        <div>
+            <label class="auth-label">Username * / اسم المستخدم</label>
+            <div class="input-wrapper">
+                <input type="text" class="auth-input" id="regUsername" placeholder="Choose a username">
+            </div>
+        </div>
+        <div>
+            <label class="auth-label">Email (optional) / البريد الإلكتروني</label>
+            <div class="input-wrapper">
+                <input type="email" class="auth-input" id="regEmail" placeholder="your@email.com">
+            </div>
+        </div>
+        <div>
+            <label class="auth-label">Password * / كلمة المرور</label>
+            <div class="input-wrapper">
+                <input type="password" class="auth-input" id="regPassword" placeholder="At least 6 characters">
+            </div>
+        </div>
+        <div>
+            <label class="auth-label">Confirm Password * / تأكيد كلمة المرور</label>
+            <div class="input-wrapper">
+                <input type="password" class="auth-input" id="regConfirm" placeholder="Repeat your password">
+            </div>
+        </div>
+        <button class="auth-btn" onclick="handleRegister()" id="registerBtn">Create Account / تسجيل الطلب</button>
+        <div class="pending-notice" id="pendingNotice">&#10003; Request submitted! Please wait for admin approval.</div>
+        <hr>
+        <p style="font-size:0.72rem;color:#b0c0cc;text-align:center;">Admin and Teacher accounts are created by the system administrator only.</p>
+    </div>
+</div>
+
+<script>
+const API_BASE='backend/api';
+
+document.addEventListener('DOMContentLoaded',()=>{
+    checkExistingSession();
+    document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin();});
+    document.getElementById('loginUsername').addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin();});
+});
+
+async function checkExistingSession(){
+    try{
+        const r=await fetch(`${API_BASE}/auth.php?action=check`);
+        const d=await r.json();
+        if(d.success && d.role){
+            redirectByRole(d.role);
+        }
+    }catch(e){}
+}
+
+function switchTab(tab){
+    clearMessage();
+    document.getElementById('pendingNotice').style.display='none';
+    const l=tab==='login';
+    document.getElementById('loginForm').style.display=l?'block':'none';
+    document.getElementById('registerForm').style.display=l?'none':'block';
+    document.querySelectorAll('.tab-btn')[0].classList.toggle('active',l);
+    document.querySelectorAll('.tab-btn')[1].classList.toggle('active',!l);
+}
+
+function togglePassword(id,btn){
+    const i=document.getElementById(id);
+    const s=btn.querySelector('svg');
+    const h=i.type==='password';
+    i.type=h?'text':'password';
+    s.innerHTML=h
+        ?`<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`
+        :`<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+}
+
+async function handleLogin(){
+    const u=document.getElementById('loginUsername').value.trim();
+    const p=document.getElementById('loginPassword').value;
+    if(!u||!p){showMessage('Please enter username and password / يرجى إدخال اسم المستخدم وكلمة المرور','error');return;}
+    const btn=document.getElementById('loginBtn');btn.disabled=true;btn.textContent='Signing in...';
+    try{
+        const r=await fetch(`${API_BASE}/auth.php?action=login`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({username:u,password:p})
+        });
+        const d=await r.json();
+        if(d.success){
+            showMessage(`Welcome, ${d.name}!`,'success');
+            setTimeout(()=>redirectByRole(d.role),600);
+        } else {
+            const t=(d.message||'').toLowerCase().includes('pending')?'warning':'error';
+            showMessage(d.message,t);
+            btn.disabled=false;btn.textContent='Sign In / دخول';
+        }
+    }catch(e){
+        showMessage('Connection error. Make sure XAMPP is running. / خطأ في الاتصال بالخادم.','error');
+        btn.disabled=false;btn.textContent='Sign In / دخول';
+    }
+}
+
+async function handleRegister(){
+    const fn=document.getElementById('regFullName').value.trim();
+    const un=document.getElementById('regUsername').value.trim();
+    const em=document.getElementById('regEmail').value.trim();
+    const pw=document.getElementById('regPassword').value;
+    const cf=document.getElementById('regConfirm').value;
+    
+    if(!fn||!un||!pw){showMessage('Please fill all required fields / يرجى ملء الحقول الإجبارية','error');return;}
+    if(pw.length<6){showMessage('Password must be at least 6 characters / يجب أن تكون كلمة المرور 6 أحرف على الأقل','error');return;}
+    if(pw!==cf){showMessage('Passwords do not match / كلمات المرور غير متطابقة','error');return;}
+    
+    const btn=document.getElementById('registerBtn');btn.disabled=true;btn.textContent='Creating account...';
+    try{
+        const r=await fetch(`${API_BASE}/auth.php?action=register`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({full_name:fn,username:un,email:em,password:pw})
+        });
+        const d=await r.json();
+        if(d.success){
+            showMessage('Account request submitted! / تم تسجيل طلبك بنجاح','success');
+            document.getElementById('pendingNotice').style.display='block';
+            ['regFullName','regUsername','regEmail','regPassword','regConfirm'].forEach(id=>document.getElementById(id).value='');
+        } else {
+            showMessage(d.message||'Registration failed','error');
+        }
+    }catch(e){
+        showMessage('Connection error. Make sure XAMPP is running.','error');
+    }
+    btn.disabled=false;btn.textContent='Create Account / تسجيل الطلب';
+}
+
+function redirectByRole(r){
+    const p={
+        admin:'frontend/pages/admin.html',
+        teacher:'frontend/pages/teacher.html',
+        student:'frontend/pages/student.html'
+    };
+    window.location.href=p[r]||'index.html';
+}
+
+function showMessage(m,t){
+    const el=document.getElementById('authMessage');
+    el.textContent=m;
+    el.className=`auth-message ${t}`;
+    el.style.display='block';
+}
+
+function clearMessage(){
+    document.getElementById('authMessage').style.display='none';
+}
+</script>
+</body>
+</html>

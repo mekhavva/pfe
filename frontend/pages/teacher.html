@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - PW Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .level-card {
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+            border: 2px solid #eef2f6;
+            user-select: none;
+        }
+        .level-card:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(74,159,212,0.18); }
+        .level-card.active-card {
+            border-color: #4a9fd4;
+            border-bottom-color: white;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            position: relative; z-index: 3; margin-bottom: -2px;
+        }
+        #levelCardsRow { margin-bottom: 0 !important; position: relative; z-index: 2; }
+        .pw-panel-wrap {
+            background: white; border-radius: 12px;
+            border: 2px solid #4a9fd4;
+            box-shadow: 0 6px 18px rgba(74,159,212,0.10);
+            overflow: hidden; position: relative; z-index: 1; display: none;
+        }
+        .pw-panel-wrap.show { display: block; }
+        .pw-panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 20px 10px; border-bottom: 1.5px solid #f0f6fc;
+        }
+        .pw-panel-title { font-size: 0.97rem; font-weight: 700; color: #1a2d3d; }
+        .pw-panel-count { font-size: 0.82rem; color: #a0b4c0; font-weight: 600; }
+        .pw-panel-body  { padding: 6px 20px 14px; max-height: 340px; overflow-y: auto; }
+        .pw-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 0; border-bottom: 1px solid #f4f8fc; font-size: 0.84rem;
+            cursor: pointer; transition: background 0.1s;
+        }
+        .pw-row:last-child { border-bottom: none; }
+        .pw-row:hover { background: #f8fbfe; margin: 0 -20px; padding: 10px 20px; }
+        .pw-row-title { font-weight: 600; color: #1a2d3d; }
+        .pw-row-sub   { color: #90a4b0; font-size: 0.77rem; margin-top: 2px; }
+
+        .create-card {
+            background: white; border: 2px solid #eef2f6; border-radius: 14px;
+            padding: 28px 28px; max-width: 700px;
+        }
+        .field-label { font-size: 0.82rem; font-weight: 700; color: #5a7080; margin-bottom: 5px; display: block; }
+        .field-group { margin-bottom: 18px; }
+        .dur-btn {
+            padding: 8px 16px; border: 2px solid #d6eaf8; border-radius: 8px;
+            background: white; cursor: pointer; font-size: 0.84rem; font-weight: 600;
+            color: #5a7080; transition: all 0.15s;
+        }
+        .dur-btn.selected { border-color: #4a9fd4; background: #eef6fd; color: #2d7db5; }
+        .student-badge {
+            display: inline-block; background: #eef6fd; color: #2d7db5;
+            border-radius: 20px; padding: 2px 10px; font-size: 0.78rem;
+            font-weight: 700; border: 1.5px solid #b8dcf5;
+        }
+
+        /* ── Calendar ── */
+        .cal-wrap { border: 2px solid #eef2f6; border-radius: 12px; overflow: hidden; user-select: none; }
+        .cal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: #f8fbfe; border-bottom: 1.5px solid #eef2f6;
+        }
+        .cal-nav {
+            background: none; border: none; font-size: 1.2rem; cursor: pointer;
+            color: #4a9fd4; padding: 2px 10px; border-radius: 6px; transition: background 0.1s;
+        }
+        .cal-nav:hover { background: #eef6fd; }
+        .cal-month-label { font-weight: 700; font-size: 0.92rem; color: #1a2d3d; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; padding: 10px; }
+        .cal-day-name { text-align: center; font-size: 0.72rem; font-weight: 700; color: #b0c4d0; padding: 4px 0; }
+        .cal-day {
+            text-align: center; padding: 7px 2px; border-radius: 8px;
+            font-size: 0.82rem; cursor: pointer; transition: all 0.12s;
+            border: 2px solid transparent;
+        }
+        .cal-day.empty  { cursor: default; }
+        .cal-day.past   { color: #ddd; cursor: not-allowed; }
+        .cal-day.busy   {
+            background: #fdecea; color: #c0392b;
+            border-color: #f5b7b1; cursor: not-allowed; font-weight: 600;
+        }
+        .cal-day.busy::after {
+            content: '●'; display: block; font-size: 0.45rem;
+            color: #e74c3c; line-height: 1;
+        }
+        .cal-day.selected  { background: #eef6fd; border-color: #4a9fd4; color: #2d7db5; font-weight: 700; }
+        .cal-day.available:hover { background: #f0f6fc; border-color: #b8dcf5; }
+        .cal-day.today-mark { box-shadow: inset 0 0 0 1.5px #4a9fd4; }
+
+        /* ── Selected days ── */
+        .sel-day-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px; border-radius: 8px;
+            background: #f8fbfe; border: 1.5px solid #eef2f6; margin-bottom: 6px;
+        }
+        .sel-day-label { font-weight: 600; color: #1a2d3d; font-size: 0.84rem; min-width: 130px; }
+        .sel-day-hours { font-size: 0.8rem; color: #5a7080; }
+        .sel-day-remove {
+            margin-left: auto; background: none; border: none;
+            color: #e74c3c; cursor: pointer; font-size: 1rem; padding: 0 4px;
+            border-radius: 5px; transition: background 0.1s; line-height: 1;
+        }
+        .sel-day-remove:hover { background: #fdecea; }
+
+        .slot-day-header { font-size:0.82rem; font-weight:700; color:#4a9fd4; padding:6px 0; border-bottom:1.5px solid #eef2f6; margin-bottom:4px; }
+        .slot-badge-free     { color:#27ae60; font-weight:600; font-size:0.78rem; }
+        .slot-badge-reserved { color:#e74c3c; font-weight:600; font-size:0.78rem; }
+    </style>
+</head>
+<script>
+async function authFetch(url,options={}){
+    options.credentials='include';
+    const r=await fetch(url,options);
+    if(r.status===401){window.location.href='../../index.html';return r;}
+    return r;
+}
+</script>
+<body>
+
+<nav class="navbar-custom" style="position:fixed;top:0;width:100%;z-index:200;">
+    <a class="navbar-brand-custom" href="#">PW <span>Platform</span></a>
+    <div class="nav-user-info">
+        <span id="navUserName">Teacher</span>
+        <span class="nav-role-badge">Teacher</span>
+        <button class="btn-secondary-custom" onclick="logout()" style="padding:5px 12px;font-size:0.82rem;">Logout</button>
+    </div>
+</nav>
+
+<div class="sidebar" style="top:60px;">
+    <div class="sidebar-section-title">My Work</div>
+    <a href="#" class="sidebar-link active" onclick="showSection('my-pws',this)">My PW Sessions</a>
+    <a href="#" class="sidebar-link" onclick="showSection('create-pw',this)">+ Create New PW</a>
+</div>
+
+<div class="main-content" style="margin-top:60px;">
+
+    <!-- === My PW Sessions === -->
+    <div id="section-my-pws">
+        <p class="page-title">My PW Sessions</p>
+        <p class="page-subtitle">Click a level to see its sessions</p>
+        <div class="row g-3" id="levelCardsRow" style="margin-bottom:0;">
+            <div class="col text-center"><div class="loading-spinner"></div></div>
+        </div>
+        <div class="pw-panel-wrap" id="pwPanel">
+            <div class="pw-panel-header">
+                <span class="pw-panel-title" id="pwPanelTitle"></span>
+                <span class="pw-panel-count" id="pwPanelCount"></span>
+            </div>
+            <div class="pw-panel-body" id="pwPanelBody"></div>
+        </div>
+        <div style="margin-bottom:24px;"></div>
+    </div>
+
+    <!-- === Create New PW === -->
+    <div id="section-create-pw" style="display:none;">
+        <p class="page-title">Create New PW</p>
+        <p class="page-subtitle">Fill in the details and pick the days</p>
+
+        <div class="create-card">
+
+            <div class="field-group">
+                <label class="field-label">Title *</label>
+                <input type="text" class="form-control-custom" id="pwTitle" placeholder="e.g. PW 1 — Arrays">
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Level *</label>
+                <select class="form-control-custom" id="pwLevel" onchange="onLevelChange()">
+                    <option value="">— Select —</option>
+                </select>
+            </div>
+
+            <div class="field-group" id="groupRow" style="display:none;">
+                <label class="field-label">Group</label>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <select class="form-control-custom" id="pwGroup" onchange="onGroupChange()" style="max-width:200px;">
+                        <option value="">— Select group —</option>
+                    </select>
+                    <span class="student-badge" id="studentBadge" style="display:none;"></span>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Duration per student</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="dur-btn selected" onclick="selectDur(this,60)">1 hour</button>
+                    <button class="dur-btn" onclick="selectDur(this,90)">1h 30min</button>
+                    <button class="dur-btn" onclick="selectDur(this,120)">2 hours</button>
+                </div>
+                <input type="hidden" id="genDuration" value="60">
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Daily hours</label>
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="font-size:0.8rem;color:#888;">From</span>
+                        <select class="form-control-custom" id="genDayStart" onchange="renderSelectedDays()" style="width:100px;display:inline-block;">
+                            <option value="8">08:00</option>
+                            <option value="9">09:00</option>
+                            <option value="10">10:00</option>
+                            <option value="11">11:00</option>
+                            <option value="12">12:00</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="font-size:0.8rem;color:#888;">To</span>
+                        <select class="form-control-custom" id="genDayEnd" onchange="renderSelectedDays()" style="width:100px;display:inline-block;">
+                            <option value="16">16:00</option>
+                            <option value="17">17:00</option>
+                            <option value="18">18:00</option>
+                            <option value="19">19:00</option>
+                            <option value="20">20:00</option>
+                            <option value="21">21:00</option>
+                            <option value="22" selected>22:00</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar + selected days -->
+            <div class="field-group">
+                <label class="field-label">Choose days for this PW *</label>
+                <p style="font-size:0.76rem;color:#aaa;margin:0 0 10px;">
+                    Click to select days.
+                    <span style="color:#e74c3c;font-weight:600;">Red = already booked for this level.</span>
+                </p>
+                <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+
+                    <!-- Calendar -->
+                    <div class="cal-wrap" style="min-width:264px;flex:0 0 264px;">
+                        <div class="cal-header">
+                            <button class="cal-nav" onclick="calPrev()">&#8249;</button>
+                            <span class="cal-month-label" id="calMonthLabel"></span>
+                            <button class="cal-nav" onclick="calNext()">&#8250;</button>
+                        </div>
+                        <div class="cal-grid" id="calGrid"></div>
+                        <div style="padding:8px 12px 10px;display:flex;gap:14px;font-size:0.72rem;color:#aaa;border-top:1px solid #f0f6fc;">
+                            <span>🔵 Selected</span>
+                            <span style="color:#e74c3c;">🔴 Busy</span>
+                            <span>Click to toggle</span>
+                        </div>
+                    </div>
+
+                    <!-- Selected days list -->
+                    <div style="flex:1;min-width:200px;">
+                        <div id="selDaysList"></div>
+                        <div id="selSummary" style="margin-top:8px;display:none;" class="student-badge"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="createMsg" style="margin-bottom:10px;"></div>
+            <button class="btn-main" style="width:100%;padding:12px;" onclick="createPW()">
+                ✓ Create PW Session
+            </button>
+        </div>
+    </div>
+
+    <!-- === Manage Slots === -->
+    <div id="section-manage-pw" style="display:none;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+            <button class="btn-secondary-custom" onclick="showSection('my-pws',null)" style="font-size:0.8rem;padding:5px 12px;">← Back</button>
+            <p class="page-title" id="managePwTitle" style="margin:0;"></p>
+        </div>
+        <p class="page-subtitle" id="managePwSub"></p>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="card-custom">
+                    <div class="card-title-custom">Add Single Slot</div>
+                    <div class="form-group-custom">
+                        <label class="form-label-custom">Date</label>
+                        <input type="date" class="form-control-custom" id="slotDate">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label-custom">Start</label>
+                            <input type="time" class="form-control-custom" id="slotStart" value="08:00">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label-custom">End</label>
+                            <input type="time" class="form-control-custom" id="slotEnd" value="09:00">
+                        </div>
+                    </div>
+                    <div id="slotMsg" style="margin-top:6px;"></div>
+                    <button class="btn-main w-100" style="margin-top:10px;" onclick="addSlot()">Add Slot</button>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card-custom">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <div class="card-title-custom" style="margin:0;">Time Slots & Reservations</div>
+                        <button class="btn-secondary-custom" style="font-size:0.76rem;padding:4px 10px;" onclick="loadSlots()">↻ Refresh</button>
+                    </div>
+                    <div id="slotsTable"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal PW Detail -->
+<div class="modal-overlay" id="pwDetailModal">
+    <div class="modal-box">
+        <div class="modal-title" id="modalPwTitle">PW Session</div>
+        <div id="modalPwContent"></div>
+        <div class="mt-3 d-flex gap-2">
+            <button class="btn-main" onclick="openManagePW(); closeModal()">Manage Slots</button>
+            <button class="btn-secondary-custom" onclick="closeModal()">Close</button>
+            <button class="btn-danger-custom ms-auto" onclick="deletePW()">Delete PW</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '../../backend/api';
+// token injected via authFetch
+let currentPW     = null;
+let _studentCount = 0;
+let _activeLevel  = null;
+let _allPWs       = [];
+let _calYear      = new Date().getFullYear();
+let _calMonth     = new Date().getMonth();
+let _busyDates    = {};
+let _selectedDays = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await verifyTeacher();
+    await loadLevels();
+    loadMyPWs();
+    renderCalendar();
+    renderSelectedDays();
+});
+
+async function verifyTeacher() {
+    try {
+        const r = await authFetch(`${API}/auth.php?action=check`);
+        const d = await r.json();
+        if (!d.success || !['teacher','admin'].includes(d.role))
+            window.location.href = '../../index.html';
+        else document.getElementById('navUserName').textContent = d.name;
+    } catch(e) { window.location.href = '../../index.html'; }
+}
+
+function showSection(name, el) {
+    document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    document.getElementById(`section-${name}`).style.display = 'block';
+    if (el) el.classList.add('active');
+    if (name === 'my-pws') loadMyPWs();
+}
+
+// ── My PW Sessions ────────────────────────────────────────────
+async function loadMyPWs() {
+    const r = await authFetch(`${API}/teacher.php?action=get_my_pws`);
+    const d = await r.json();
+    const row = document.getElementById('levelCardsRow');
+
+    if (!d.success || !d.pws.length) {
+        row.innerHTML = `<div class="col"><div class="empty-state">
+            <p>No PW sessions yet.</p>
+            <p style="margin-top:8px;">
+                <a href="#" onclick="showSection('create-pw',document.querySelector('.sidebar-link:last-child'))"
+                   style="color:var(--primary);">Create your first PW</a>
+            </p></div></div>`;
+        document.getElementById('pwPanel').classList.remove('show');
+        return;
+    }
+    _allPWs = d.pws;
+    const byLevel = {};
+    d.pws.forEach(pw => { const k=pw.level_name||'Unknown'; if(!byLevel[k])byLevel[k]=[]; byLevel[k].push(pw); });
+    const levels = Object.keys(byLevel).sort();
+    row.innerHTML = levels.map(level => {
+        const pws      = byLevel[level];
+        const reserved = pws.reduce((s,p)=>s+parseInt(p.reserved_slots||0),0);
+        const total    = pws.reduce((s,p)=>s+parseInt(p.total_slots||0),0);
+        return `<div class="col">
+            <div class="stat-card level-card${_activeLevel===level?' active-card':''}" onclick="toggleLevel('${level}')">
+                <span class="stat-number">${pws.length}</span>
+                <div class="stat-label">${level}</div>
+                <div style="font-size:0.7rem;color:#b0c4d0;margin-top:3px;">${reserved}/${total} reserved</div>
+            </div></div>`;
+    }).join('');
+    if (_activeLevel && byLevel[_activeLevel]) _renderPanel(_activeLevel, byLevel[_activeLevel]);
+}
+
+function toggleLevel(level) {
+    const byLevel = {};
+    _allPWs.forEach(pw=>{ const k=pw.level_name||'Unknown'; if(!byLevel[k])byLevel[k]=[]; byLevel[k].push(pw); });
+    if (_activeLevel === level) {
+        _activeLevel = null;
+        document.getElementById('pwPanel').classList.remove('show');
+        document.querySelectorAll('.level-card').forEach(c=>c.classList.remove('active-card'));
+        return;
+    }
+    document.querySelectorAll('.level-card').forEach(c=>c.classList.remove('active-card'));
+    document.querySelectorAll('.level-card').forEach(c=>{
+        if(c.querySelector('.stat-label')?.textContent===level) c.classList.add('active-card');
+    });
+    _activeLevel = level;
+    _renderPanel(level, byLevel[level]||[]);
+}
+
+function _renderPanel(level, pws) {
+    document.getElementById('pwPanelTitle').textContent = `${level} — PW Sessions`;
+    document.getElementById('pwPanelCount').textContent = `${pws.length} session${pws.length>1?'s':''}`;
+    document.getElementById('pwPanelBody').innerHTML = pws.length
+        ? pws.map(pw=>`
+            <div class="pw-row" onclick="openPWDetail(${JSON.stringify(pw).replace(/"/g,'&quot;')})">
+                <div>
+                    <div class="pw-row-title">${pw.title}</div>
+                    <div class="pw-row-sub">${pw.reserved_slots}/${pw.total_slots} reserved${pw.start_date?' · '+pw.start_date:''}</div>
+                </div>
+                <span class="badge-${pw.is_active?'active':'inactive'}" style="font-size:0.72rem;">${pw.is_active?'Active':'Off'}</span>
+            </div>`).join('')
+        : '<p style="color:#aaa;font-size:0.84rem;padding:10px 0;">No sessions.</p>';
+    document.getElementById('pwPanel').classList.add('show');
+}
+
+// ── Level / Group ─────────────────────────────────────────────
+async function onLevelChange() {
+    const levelId  = document.getElementById('pwLevel').value;
+    const groupRow = document.getElementById('groupRow');
+    const groupSel = document.getElementById('pwGroup');
+    const badge    = document.getElementById('studentBadge');
+
+    badge.style.display = 'none';
+    _studentCount = 0;
+    _busyDates    = {};
+    _selectedDays = [];
+    renderCalendar();
+    renderSelectedDays();
+
+    if (!levelId) { groupRow.style.display='none'; return; }
+
+    // fetch busy dates for this level
+    const rb = await authFetch(`${API}/teacher.php?action=get_busy_dates&level_id=${levelId}`);
+    const db = await rb.json();
+    if (db.success) { _busyDates = db.busy; renderCalendar(); }
+
+    const r = await authFetch(`${API}/teacher.php?action=get_level_groups&level_id=${levelId}`);
+    const d = await r.json();
+    if (d.success && d.groups.length > 0) {
+        groupSel.innerHTML = '<option value="">— Select group —</option>';
+        d.groups.forEach(g => {
+            groupSel.innerHTML += `<option value="${g.group_num}">${g.label} (${g.student_count} students)</option>`;
+        });
+        groupRow.style.display = 'block';
+    } else {
+        const r2 = await authFetch(`${API}/teacher.php?action=get_level_students&level_id=${levelId}`);
+        const d2 = await r2.json();
+        if (d2.success) {
+            _studentCount = d2.student_count;
+            badge.textContent = `${_studentCount} students`;
+            badge.style.display = 'inline-block';
+        }
+        groupRow.style.display = 'none';
+    }
+}
+
+async function onGroupChange() {
+    const levelId  = document.getElementById('pwLevel').value;
+    const groupNum = document.getElementById('pwGroup').value;
+    const badge    = document.getElementById('studentBadge');
+    if (!groupNum) { badge.style.display='none'; _studentCount=0; return; }
+    const r = await authFetch(`${API}/teacher.php?action=get_level_students&level_id=${levelId}&group_num=${groupNum}`);
+    const d = await r.json();
+    if (d.success) {
+        _studentCount = d.student_count;
+        badge.textContent = `${_studentCount} students`;
+        badge.style.display = 'inline-block';
+    }
+}
+
+function selectDur(btn, val) {
+    document.querySelectorAll('.dur-btn').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('genDuration').value = val;
+    renderSelectedDays();
+}
+
+// ── Calendar ──────────────────────────────────────────────────
+function calPrev() { _calMonth--; if(_calMonth<0){_calMonth=11;_calYear--;} renderCalendar(); }
+function calNext() { _calMonth++; if(_calMonth>11){_calMonth=0;_calYear++;} renderCalendar(); }
+
+function renderCalendar() {
+    const el = document.getElementById('calGrid');
+    if (!el) return;
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const DNAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    document.getElementById('calMonthLabel').textContent = `${MONTHS[_calMonth]} ${_calYear}`;
+
+    const today    = new Date(); today.setHours(0,0,0,0);
+    const firstDay = new Date(_calYear, _calMonth, 1);
+    const lastDay  = new Date(_calYear, _calMonth+1, 0);
+    const startDow = (firstDay.getDay()+6)%7;
+
+    let html = DNAMES.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+    for (let i=0; i<startDow; i++) html += `<div class="cal-day empty"></div>`;
+
+    for (let day=1; day<=lastDay.getDate(); day++) {
+        const dt    = new Date(_calYear, _calMonth, day);
+        const key   = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const isPast= dt < today;
+        const isBusy= !!_busyDates[key];
+        const isSel = _selectedDays.includes(key);
+        const isToday = dt.getTime()===today.getTime();
+
+        let cls = 'cal-day';
+        let attr = '';
+        if (isPast)       cls += ' past';
+        else if (isBusy)  { cls += ' busy'; attr = `title="Busy: ${_busyDates[key]}"`; }
+        else if (isSel)   cls += ' selected available';
+        else              cls += ' available';
+        if (isToday)      cls += ' today-mark';
+
+        const click = (!isPast && !isBusy) ? `onclick="toggleDay('${key}')"` : '';
+        html += `<div class="${cls}" ${click} ${attr}>${day}</div>`;
+    }
+    el.innerHTML = html;
+}
+
+function toggleDay(key) {
+    const idx = _selectedDays.indexOf(key);
+    if (idx>=0) _selectedDays.splice(idx,1);
+    else        _selectedDays.push(key);
+    _selectedDays.sort();
+    renderCalendar();
+    renderSelectedDays();
+}
+
+function renderSelectedDays() {
+    const el  = document.getElementById('selDaysList');
+    const sum = document.getElementById('selSummary');
+    if (!el) return;
+
+    if (!_selectedDays.length) {
+        el.innerHTML = '<span style="color:#aaa;font-size:0.82rem;">No days selected yet.</span>';
+        if (sum) sum.style.display = 'none';
+        return;
+    }
+
+    const durMin    = parseInt(document.getElementById('genDuration')?.value||60);
+    const dayStartH = parseInt(document.getElementById('genDayStart')?.value||8);
+    const dayEndH   = parseInt(document.getElementById('genDayEnd')?.value||22);
+    const perDay    = Math.floor(((dayEndH-dayStartH)*60)/durMin);
+    const totalSlots= _selectedDays.length * perDay;
+    const WDAYS     = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    el.innerHTML = _selectedDays.map(d => {
+        const dt  = new Date(d+'T00:00:00');
+        const dow = WDAYS[dt.getDay()];
+        const fmt = dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+        return `<div class="sel-day-row">
+            <span class="sel-day-label">${dow}, ${fmt}</span>
+            <span class="sel-day-hours">
+                ${String(dayStartH).padStart(2,'0')}:00 → ${String(dayEndH).padStart(2,'0')}:00
+                &nbsp;·&nbsp; <strong>${perDay}</strong> students
+            </span>
+            <button class="sel-day-remove" onclick="toggleDay('${d}')">✕</button>
+        </div>`;
+    }).join('');
+
+    if (sum) {
+        sum.textContent = `${_selectedDays.length} day${_selectedDays.length>1?'s':''} · ~${totalSlots} slots total`;
+        sum.style.display = 'inline-block';
+    }
+}
+
+// ── Create PW ─────────────────────────────────────────────────
+async function createPW() {
+    const title     = document.getElementById('pwTitle').value.trim();
+    const levelId   = document.getElementById('pwLevel').value;
+    const durMin    = parseInt(document.getElementById('genDuration').value)||60;
+    const dayStartH = parseInt(document.getElementById('genDayStart').value)||8;
+    const dayEndH   = parseInt(document.getElementById('genDayEnd').value)||22;
+
+    if (!title)               { showMsg('createMsg','Title is required','error'); return; }
+    if (!levelId)             { showMsg('createMsg','Please select a level','error'); return; }
+    if (!_studentCount)       { showMsg('createMsg','No students found for this level/group','error'); return; }
+    if (!_selectedDays.length){ showMsg('createMsg','Please select at least one day in the calendar','error'); return; }
+
+    const startDate = _selectedDays[0];
+    const endDate   = _selectedDays[_selectedDays.length-1];
+
+    const r1 = await authFetch(`${API}/teacher.php?action=create_pw`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({title, description:'', level_id:levelId, start_date:startDate, end_date:endDate})
+    });
+    const d1 = await r1.json();
+    if (!d1.success) { showMsg('createMsg', d1.message, 'error'); return; }
+
+    // Generate slots per selected day
+    const perDay = Math.floor(((dayEndH-dayStartH)*60)/durMin);
+    const fmt    = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}:00`;
+    let remaining = _studentCount;
+    let totalGen  = 0;
+
+    for (const day of _selectedDays) {
+        if (remaining <= 0) break;
+        let cur = dayStartH*60;
+        const todayN = Math.min(perDay, remaining);
+        for (let i=0; i<todayN; i++) {
+            const endMin = cur + durMin;
+            if (endMin > dayEndH*60) break;
+            await authFetch(`${API}/teacher.php?action=add_slot`,{
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({pw_id:d1.pw_id, slot_date:day, start_time:fmt(cur), end_time:fmt(endMin)})
+            });
+            cur = endMin; remaining--; totalGen++;
+        }
+    }
+
+    showMsg('createMsg', `✓ Done! ${totalGen} slots over ${_selectedDays.length} day${_selectedDays.length>1?'s':''}.`, 'success');
+    document.getElementById('pwTitle').value = '';
+    document.getElementById('pwLevel').value = '';
+    document.getElementById('studentBadge').style.display = 'none';
+    document.getElementById('groupRow').style.display = 'none';
+    _studentCount=0; _selectedDays=[]; _busyDates={};
+    renderCalendar(); renderSelectedDays();
+    setTimeout(()=>showSection('my-pws',document.querySelector('.sidebar-link')),1800);
+}
+
+// ── PW Detail ─────────────────────────────────────────────────
+function openPWDetail(pw) {
+    currentPW = pw;
+    document.getElementById('modalPwTitle').textContent = pw.title;
+    document.getElementById('modalPwContent').innerHTML = `
+        <table style="width:100%;font-size:0.88rem;color:#666;">
+            <tr><td style="padding:4px 8px 4px 0;"><strong>Level:</strong></td><td>${pw.level_name}</td></tr>
+            <tr><td><strong>Status:</strong></td><td><span class="badge-${pw.is_active?'active':'inactive'}">${pw.is_active?'Active':'Inactive'}</span></td></tr>
+            <tr><td><strong>Slots:</strong></td><td>${pw.total_slots} total</td></tr>
+            <tr><td><strong>Reserved:</strong></td><td>${pw.reserved_slots}</td></tr>
+            ${pw.start_date?`<tr><td><strong>Period:</strong></td><td>${pw.start_date} → ${pw.end_date||'...'}</td></tr>`:''}
+        </table>`;
+    document.getElementById('pwDetailModal').classList.add('show');
+}
+
+function openManagePW() {
+    if (!currentPW) return;
+    document.querySelectorAll('[id^="section-"]').forEach(s=>s.style.display='none');
+    document.getElementById('section-manage-pw').style.display='block';
+    document.getElementById('managePwTitle').textContent = currentPW.title;
+    document.getElementById('managePwSub').textContent =
+        `Level: ${currentPW.level_name}  ·  ${currentPW.total_slots} slots  ·  ${currentPW.reserved_slots} reserved`;
+    loadSlots();
+}
+
+async function loadSlots() {
+    if (!currentPW) return;
+    const r = await authFetch(`${API}/teacher.php?action=get_slots&pw_id=${currentPW.id}`);
+    const d = await r.json();
+    const el = document.getElementById('slotsTable');
+    if (!d.success||!d.slots.length){el.innerHTML='<div class="empty-state"><p>No slots found</p></div>';return;}
+    const byDay={};
+    d.slots.forEach(s=>{(byDay[s.slot_date]=byDay[s.slot_date]||[]).push(s);});
+    let html='';
+    Object.keys(byDay).sort().forEach(date=>{
+        const label=new Date(date+'T00:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
+        const slots=byDay[date]; const free=slots.filter(s=>!s.reserved_by).length;
+        html+=`<div style="margin-bottom:16px;">
+            <div class="slot-day-header">📅 ${label} — ${free} free / ${slots.length} total</div>
+            <table class="table-custom" style="margin:0;">
+                <thead><tr><th>Start</th><th>End</th><th>Status</th><th>Student</th><th>Action</th></tr></thead>
+                <tbody>${slots.map(s=>`<tr>
+                    <td>${s.start_time.slice(0,5)}</td><td>${s.end_time.slice(0,5)}</td>
+                    <td>${s.reserved_by?'<span class="slot-badge-reserved">● Reserved</span>':'<span class="slot-badge-free">● Free</span>'}</td>
+                    <td>${s.reserved_by||'—'}</td>
+                    <td>${s.reserved_by
+                        ?`<button class="btn-danger-custom" onclick="forceFree(${s.id})" style="font-size:0.74rem;padding:3px 8px;">Free</button>`
+                        :`<button class="btn-danger-custom" onclick="deleteSlot(${s.id})" style="font-size:0.74rem;padding:3px 8px;">Delete</button>`
+                    }</td></tr>`).join('')}</tbody>
+            </table></div>`;
+    });
+    el.innerHTML=html;
+}
+
+async function addSlot(){
+    const d=document.getElementById('slotDate').value;
+    const s=document.getElementById('slotStart').value;
+    const e=document.getElementById('slotEnd').value;
+    if(!d||!s){showMsg('slotMsg','Date and start time required','error');return;}
+    const r=await authFetch(`${API}/teacher.php?action=add_slot`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw_id:currentPW.id,slot_date:d,start_time:s,end_time:e})});
+    const res=await r.json();
+    showMsg('slotMsg',res.message,res.success?'success':'error');
+    if(res.success)loadSlots();
+}
+async function deleteSlot(id){
+    if(!confirm('Delete this slot?'))return;
+    await authFetch(`${API}/teacher.php?action=delete_slot`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    loadSlots();
+}
+async function forceFree(slotId){
+    if(!confirm('Cancel this reservation?'))return;
+    await authFetch(`${API}/teacher.php?action=force_free_slot`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot_id:slotId})});
+    loadSlots();
+}
+async function deletePW(){
+    if(!currentPW||!confirm(`Delete "${currentPW.title}"?`))return;
+    closeModal();
+    await authFetch(`${API}/teacher.php?action=delete_pw`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:currentPW.id})});
+    currentPW=null; _activeLevel=null; loadMyPWs();
+}
+
+async function loadLevels(){
+    const r=await authFetch(`${API}/teacher.php?action=get_levels`);
+    const d=await r.json();
+    if(!d.success)return;
+    const sel=document.getElementById('pwLevel');
+    sel.innerHTML='<option value="">— Select —</option>';
+    d.levels.forEach(l=>sel.innerHTML+=`<option value="${l.id}">${l.name}</option>`);
+}
+
+function closeModal(){document.getElementById('pwDetailModal').classList.remove('show');}
+async function logout(){
+    await authFetch(`${API}/auth.php?action=logout`);
+    localStorage.removeItem('pw_token');
+    window.location.href='../../index.html';
+}function showMsg(id,msg,type){
+    const el=document.getElementById(id);
+    el.innerHTML=`<div class="alert-custom alert-${type==='success'?'success':'error'}">${msg}</div>`;
+    setTimeout(()=>el.innerHTML='',4000);
+}
+</script>
+</body>
+</html>
